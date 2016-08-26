@@ -1,56 +1,50 @@
 import re
 
 class GenerateHL7String:
-	#segments begin on new line
-	#dob? gender? address? doctor?
-	#inter_id : CX
-	#name : PN
-	#dob : format is MM/DD/YYYY or MMDDYYYY
-	#sex : M, F
-	#address : 
+	"""inter_id : int
+		name : string
+		dob : format is YYYY/MM/DD or YYYYMMDD
+		sex : M, F
+		address : street_address, city, state zip_code
+		patient_class: E, I, O, P, R, B, C, N, U
+	"""
 	def parse(self, inter_id, name, dob, sex, address, patient_class):
 		inter_id = self.process_id(inter_id)
 		if inter_id is False:
-			print 'enter a valid Patient ID'
+			print 'invalid Patient ID'
 			return -1
 
 		name = self.process_name(name)
 		if name is False:
-			print 'enter a valid name'
+			print 'invalid name'
 			return -1
 
-		patient_class = self.process_patient_class(patient_class)
-		if patient_class is False:
-			print 'enter a valid patient class choice (E, I, O, P, R, B, C, N, U)'
+		dob = self.process_dob(dob)
+		if dob is False:
+			print 'invalid DOB'
 			return -1
 
 		sex = self.process_sex(sex)
 		if sex is False:
-			print 'enter valid sex'
+			print 'invalid sex'
+			return -1
+
+		address = self.process_address(address)
+		if address is False:
+			print 'invalid address'
+			return -1
+
+		patient_class = self.process_patient_class(patient_class)
+		if patient_class is False:
+			print 'invalid patient class choice (E, I, O, P, R, B, C, N, U)'
 			return -1
 
 		#msh is hardcoded
 		msh = 'MSH|^~\&|MegaReg|XYZHospC|SuperOE|XYZImgCtr|20060529090131-0500||ADT^A01^ADT_A01|01052901|P|2.5\n'
-		pid = 'PID|||' + inter_id + '|' +  name + '\n'
+		pid = 'PID|||' + inter_id + '||' +  name + '||' + dob + '|' + sex + '|||' + address + '\n'
 		pv1 = 'PV1||'+ patient_class
 		res = msh + pid + pv1
 		return res
-
-	def process_sex(self, sex):
-		if isinstance(sex, (int, long)):
-			return False
-		sex = sex.upper()
-		sex_choices = {'M', 'F'}
-		if sex not in sex_choices:
-			return False
-		return sex
-
-	def process_patient_class(self, patient_class):
-		patient_class = patient_class.upper()
-		patient_class_choices = {'E', 'I', 'O', 'P', 'R', 'B', 'C', 'N', 'U' }
-		if patient_class not in patient_class_choices:
-			return False
-		return patient_class
 
 	def process_id(self, inter_id):
 		if isinstance(inter_id, (int, long)):
@@ -84,10 +78,52 @@ class GenerateHL7String:
 		result = last_name + '^' + first_name + '^' + mid_name + '^' + suf_name
 		return result.strip('^')
 
-	#def process_dob(self, dob):
+	def process_dob(self, dob):
+		if isinstance(dob, (int, long)):
+			if len(str(dob)) != 8:
+				return False
+			else:
+				return str(dob)
+		else:
+			match_obj = re.match(r'\d{4}\/\d{2}\/\d{2}$', dob)
+			if match_obj is not None or len(dob) != 8:
+				return False
+			elif match_obj:
+				dob = dob.translate(None, '/')
+		return dob
+
+	def process_sex(self, sex):
+		if isinstance(sex, (int, long)):
+			return False
+		sex = sex.upper()
+		sex_choices = {'M', 'F'}
+		if sex not in sex_choices:
+			return False
+		return sex
+
+	def process_address(self, address):
+		if isinstance(address, (int, long)):
+			return False
+		res = ''
+		address = address.split(',')
+		if len(address) != 3:
+			return False
+		state_zip = address[2].split()
+		address.remove(address[2])
+		address.extend(state_zip)
+		for i, word in enumerate(address):
+			address[i] = word.strip()
+
+		res += '^'.join(address)
+		return res
 
 
+	def process_patient_class(self, patient_class):
+		patient_class = patient_class.upper()
+		patient_class_choices = {'E', 'I', 'O', 'P', 'R', 'B', 'C', 'N', 'U' }
+		if patient_class not in patient_class_choices:
+			return False
+		return patient_class
 
-g = GenerateHL7String()
-print g.parse(1,'rick last',3,4,5, 'E')
+
 
